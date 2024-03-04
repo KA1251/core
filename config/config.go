@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// write data to config
+// use a config file to write data
 func LoadConf(path string) {
 
 	file, err := os.Open(path)

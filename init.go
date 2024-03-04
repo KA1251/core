@@ -3,101 +3,94 @@ package core
 import (
 	"os"
 
+	"github.com/Shopify/sarama"
+	"github.com/go-redis/redis/v8"
+	"github.com/jmoiron/sqlx"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 )
 
 func Initiallizing(c *ConfigStruct, con *ConnectionHandler) {
-	//Prometheus
+
 	logrus.SetLevel(logrus.DebugLevel)
-	if c.PrometheusFlag == "T" {
-		host := c.PrometheusHost
-		port := c.PrometheusPort
-		client, err := NewPrometheus(host, port)
-		if err != nil {
-			logrus.Error("Prometheus connection error", err)
-		} else {
-			logrus.Info("prometheus: connection sucsessfull")
-			con.Prometheus = client
-			con.PrometheusIsInitialized = true
-			Handler.Prometheus = client
-			Handler.PrometheusIsInitialized = true
-		}
-	}
-	//Redis
-	if c.RedisFlag == "T" {
 
-		addr := c.RedisHost
-		port := c.RedisPort
-		password := c.RedisPassword
-		client, err := NewRedis(addr, port, password)
-		if err != nil {
-			logrus.Error("Redis connection error:", err)
-		} else {
-			logrus.Info("redis: connection sucsessfull")
-			con.Redis = client
-			con.RedisIsInitialized = true
-			Handler.Redis = client
-			Handler.RedisIsInitialized = true
-		}
+	addrRedis := c.RedisHost
+	portRedis := c.RedisPort
+	passwordRedis := c.RedisPassword
+	doneRedis := make(chan struct{}, 1)
+	updatesRedis := make(chan *redis.Client, 1)
 
-	}
-	//RabbitMQ
+	hostSQL := c.SqlHost
+	portSQL := c.SqlPort
+	userSQL := c.SqlUsername
+	passwordSQL := c.SqlPassword
+	dbNameSQL := c.SqlDB
+	dbDriverSQL := os.Getenv("SQLDB_DRIVER")
+	doneSQL := make(chan struct{}, 1)
+	updatesSQL := make(chan *sqlx.DB, 1)
 
-	if c.RabbitmqFlag == "T" {
-		host := c.RabbitmqHost
-		port := c.RabbitmqPort
-		user := c.RabbitmqUsername
-		password := c.RedisPassword
-		conn, err := NewRabbitMQ(host, port, user, password)
-		if err != nil {
-			logrus.Error("RabbitMQ connection error", err)
-		} else {
-			logrus.Info("rabbitmq: connection sucsessfull")
-			con.RabbitMQ = conn
-			con.RabbitMQIsInitialized = true
-			Handler.RabbitMQ = conn
-			Handler.RabbitMQIsInitialized = true
-		}
-	}
+	hostKafka := c.KafkaHost
+	portKafka := c.KafkaPort
+	usernameKafka := c.KafkaUsername
+	passwordKafka := c.KafkaPassword
+	doneKafka := make(chan struct{}, 1)
+	updatesKafkaProd := make(chan sarama.SyncProducer, 1)
+	updatesKafkaCons := make(chan sarama.Consumer, 1)
 
-	//Kafka
-	if c.KafkaFlag == "T" {
-		host := c.KafkaHost
-		port := c.KafkaPort
-		username := c.KafkaUsername
-		password := c.KafkaPassword
+	hostRabbit := c.RabbitmqHost
+	portRabbit := c.RabbitmqPort
+	userRabbit := c.RabbitmqUsername
+	passwordRabbit := c.RedisPassword
+	doneRabbit := make(chan struct{}, 1)
+	updatesRabbit := make(chan *amqp.Connection, 1)
 
-		producer, consumer, err := NewKafka(host, port, username, password)
-		if err != nil {
-			logrus.Error("Kafka connection error", err)
-		} else {
-			logrus.Info("kafka: connection sucsessfull")
-			con.KafkaConsumer = consumer
-			con.KafkaProducer = producer
-			con.KafkaIsInitialized = true
-			Handler.KafkaProducer = producer
-			Handler.KafkaConsumer = consumer
-			Handler.KafkaIsInitialized = true
-		}
-
-	}
-	//SQL
+	hostPr := c.PrometheusHost
+	portPr := c.PrometheusPort
+	donePr := make(chan struct{}, 1)
+	updatesPr := make(chan *v1.API, 1)
+	//sql connection checker
 	if c.SqlFlag == "T" {
-		host := c.SqlHost
-		port := c.SqlPort
-		user := c.SqlUsername
-		password := c.SqlPassword
-		dbName := c.SqlDB
-		dbDriver := os.Getenv("SQLDB_DRIVER")
-		db, err := NewSqlDB(host, port, user, password, dbName, dbDriver)
-		if err != nil {
-			logrus.Error("SQL connection error", err)
-		} else {
-			logrus.Info("SQL: connection sucsessfull")
-			con.SQLDB = db
-			con.SQLDBIsInitialized = true
-			Handler.SQLDB = db
-			Handler.SQLDBIsInitialized = true
-		}
+		go ConToSql(hostSQL, portSQL, userSQL, passwordSQL, dbNameSQL, dbDriverSQL, doneSQL, updatesSQL)
+		<-doneSQL
+		db := <-updatesSQL
+		con.SQLDB = db
+		con.SQLDBIsInitialized = true
 	}
+	//kafka connection checker
+	if c.KafkaFlag == "T" {
+		go ConToKafka(hostKafka, portKafka, usernameKafka, passwordKafka, doneKafka, updatesKafkaProd, updatesKafkaCons)
+		<-doneKafka
+		kafkaProd := <-updatesKafkaProd
+		kafkaCons := <-updatesKafkaCons
+		con.KafkaProducer = kafkaProd
+		con.KafkaConsumer = kafkaCons
+		con.KafkaIsInitialized = true
+	}
+	//rabbitMQ connection checker
+	if c.RabbitmqFlag == "T" {
+		go ConnToRabbitMQ(hostRabbit, portRabbit, userRabbit, passwordRabbit, doneRabbit, updatesRabbit)
+		<-doneRabbit
+		conRabbit := <-updatesRabbit
+		con.RabbitMQ = conRabbit
+		con.RabbitMQIsInitialized = true
+	}
+	//Prometheus connection checker
+	if c.PrometheusFlag == "T" {
+		go ConToPrometheus(hostPr, portPr, donePr, updatesPr)
+		<-donePr
+		promCon := <-updatesPr
+
+		con.Prometheus = promCon
+
+	}
+	//reddis connection checker
+	if c.RedisFlag == "T" {
+		go ConToRedis(addrRedis, portRedis, passwordRedis, doneRedis, updatesRedis)
+		<-doneRedis
+		client := <-updatesRedis
+		con.Redis = client
+		con.RedisIsInitialized = true
+	}
+
 }

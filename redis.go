@@ -1,30 +1,30 @@
 package core
 
 import (
-	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/sirupsen/logrus"
 )
 
 // NewRedis creates a new connector to Redis
-func NewRedis(host, port, password string) (*redis.Client, error) {
-	// Forming a Redis address
+func ConToRedis(host, port, password string, done chan<- struct{}, data chan<- *redis.Client) {
 	addr := fmt.Sprintf("%s:%s", host, port)
-
-	// Creating a new Redis client
-	client := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password, // Blank password means no password
-		DB:       0,        // Default is DB 0
-	})
-
-	// Checking the connection
-	ctx := context.Background()
-	_, err := client.Ping(ctx).Result()
-	if err != nil {
-		return nil, fmt.Errorf("не удалось подключиться к Redis: %v", err)
+	for {
+		client := redis.NewClient(&redis.Options{
+			Addr:     addr,
+			Password: password, // Blank password means no password
+			DB:       0,        // Default is DB 0
+		})
+		_, err := client.Ping(client.Context()).Result()
+		if err == nil {
+			logrus.Info("Redis sucsessfull conection")
+			data <- client
+			done <- struct{}{}
+			return
+		}
+		logrus.Error("Error during connection to Redis: ", err)
+		time.Sleep(3 * time.Second)
 	}
-
-	return client, nil
 }
