@@ -8,6 +8,7 @@ func PushData(c *ConfigStruct) {
 	c.RabbitmqHost = os.Getenv("RABBITMQ_HOST")
 	c.RabbitmqPort = os.Getenv("RABBITMQ_PORT")
 	c.RabbitmqUsername = os.Getenv("RABBITMQ_USERNAME")
+	c.RabbitmqPassword = os.Getenv("RABBITMQ_PASSWORD")
 
 	c.RedisFlag = os.Getenv("REDIS_ENABLED")
 	c.RedisHost = os.Getenv("REDIS_HOST")

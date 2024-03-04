@@ -23,6 +23,7 @@ type ConfigStruct struct {
 	RabbitmqHost     string
 	RabbitmqPort     string
 	RabbitmqUsername string
+	RabbitmqPassword string
 
 	PrometheusFlag string
 	PrometheusHost string
