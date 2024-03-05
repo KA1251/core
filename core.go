@@ -1,6 +1,7 @@
 package core
 
 import (
+	"database/sql"
 	"log"
 	"sync"
 
@@ -11,38 +12,6 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/streadway/amqp"
 )
-
-// struct to contain config data
-type ConfigStruct struct {
-	RedisFlag     string
-	RedisPassword string
-	RedisHost     string
-	RedisPort     string
-
-	RabbitmqFlag     string
-	RabbitmqHost     string
-	RabbitmqPort     string
-	RabbitmqUsername string
-	RabbitmqPassword string
-
-	PrometheusFlag string
-	PrometheusHost string
-	PrometheusPort string
-
-	KafkaFlag     string
-	KafkaPort     string
-	KafkaHost     string
-	KafkaUsername string
-	KafkaPassword string
-
-	SqlFlag     string
-	SqlPort     string
-	SqlHost     string
-	SqlPassword string
-	SqlUsername string
-	SqlDB       string
-	SqlDriver   string
-}
 
 // ConnectionHandler contains initialized connectors and their statuses
 type ConnectionHandler struct {
@@ -76,6 +45,10 @@ type ConnectionHandler struct {
 
 	// HealthCheck
 	HealthCheckIsInitialized bool
+
+	//MySQL
+	MySQLIsInitialized bool
+	MySQLDB            *sql.DB
 }
 
 var Handler ConnectionHandler

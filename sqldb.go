@@ -20,7 +20,7 @@ func ConToSql(host, port, user, password, dbName, driverName string, done chan<-
 	for {
 		db, err := sqlx.Connect(driverName, dsn)
 		if err == nil {
-			logrus.Info("sucsessfull conection")
+			logrus.Info("sucsessfull conection to sql")
 			data <- db
 			done <- struct{}{}
 			return

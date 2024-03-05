@@ -10,8 +10,8 @@ import (
 )
 
 // use a config file to write data
-func LoadConf(path string) {
 
+func LoadConf(path string) {
 	file, err := os.Open(path)
 	if err != nil {
 		logrus.Error("Ошибка при открытии файла:", err)
@@ -38,4 +38,5 @@ func LoadConf(path string) {
 	for key, def := range config {
 		os.Setenv(key, def)
 	}
+
 }
